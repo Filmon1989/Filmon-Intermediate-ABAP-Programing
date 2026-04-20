@@ -10,6 +10,7 @@ CLASS lcl_passenger_flight DEFINITION .
     DATA connection_id TYPE /dmo/connection_id    READ-ONLY.
     DATA flight_date   TYPE /dmo/flight_date      READ-ONLY.
 
+
     METHODS constructor
       IMPORTING
         i_carrier_id    TYPE /dmo/carrier_id
@@ -32,6 +33,7 @@ CLASS lcl_passenger_flight DEFINITION .
       RETURNING
         VALUE(r_result) TYPE st_connection_details.
 
+
     METHODS
       get_free_seats
         RETURNING
@@ -46,7 +48,7 @@ CLASS lcl_passenger_flight DEFINITION .
           i_carrier_id    TYPE /dmo/carrier_id
         RETURNING
           VALUE(r_result) TYPE tt_flights.
-
+      CLASS-METHODS class_constructor.
   PROTECTED SECTION.
   PRIVATE SECTION.
 
@@ -72,11 +74,38 @@ CLASS lcl_passenger_flight DEFINITION .
          currency_code  TYPE /dmo/currency_code,
        END OF st_flights_buffer.
 
+       TYPES: BEGIN OF st_connections_buffer,
+         carrier_id      TYPE /dmo/carrier_id,
+         connection_id   TYPE /dmo/connection_id,
+         airport_from_id TYPE /dmo/airport_from_id,
+         airport_to_id   TYPE /dmo/airport_to_id,
+         departure_time  TYPE /dmo/flight_departure_time,
+         arrival_time    TYPE /dmo/flight_departure_time,
+         duration        TYPE i,
+       END OF st_connections_buffer.
+
+CLASS-DATA connections_buffer TYPE STANDARD TABLE OF st_connections_buffer
+  WITH NON-UNIQUE DEFAULT KEY.
+
 CLASS-DATA flights_buffer TYPE STANDARD TABLE OF st_flights_buffer
   WITH NON-UNIQUE DEFAULT KEY.
 ENDCLASS.
 
 CLASS lcl_passenger_flight IMPLEMENTATION.
+
+    METHOD class_constructor.
+
+  SELECT
+    FROM /dmo/connection
+    FIELDS carrier_id,
+           connection_id,
+           airport_from_id,
+           airport_to_id,
+           departure_time,
+           arrival_time
+    INTO CORRESPONDING FIELDS OF TABLE @connections_buffer.
+
+ENDMETHOD.
 
   METHOD get_flights_by_carrier.
 
@@ -153,12 +182,12 @@ ENDMETHOD.
       ENDTRY.
 
 * Set connection details
-      SELECT SINGLE
-        FROM /dmo/connection
-      FIELDS airport_from_id, airport_to_id, departure_time, arrival_time
-       WHERE carrier_id    = @carrier_id
-         AND connection_id = @connection_id
-        INTO @connection_details .
+      connection_details = CORRESPONDING #(
+        connections_buffer[
+          carrier_id    = carrier_id
+          connection_id = connection_id
+        ]
+      ).
 
       connection_details-duration = connection_details-arrival_time
                                   - connection_details-departure_time.
