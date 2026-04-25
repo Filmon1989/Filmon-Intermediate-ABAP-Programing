@@ -101,6 +101,8 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
 
  METHOD class_constructor.
 
+  DATA(today) = cl_abap_context_info=>get_system_date( ).
+
   SELECT
     FROM /lrn/connection AS c
     LEFT OUTER JOIN /lrn/airport AS f
@@ -113,32 +115,24 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
            c~airport_to_id,
            c~departure_time,
            c~arrival_time,
-           f~timzone AS timzone_from,
-           t~timzone AS timzone_to
+                      f~timzone AS timzone_from,
+           t~timzone AS timzone_to,
+           div(
+             tstmp_seconds_between(
+               tstmp1 = dats_tims_to_tstmp(
+                 date  = @today,
+                 time  = c~departure_time,
+                 tzone = f~timzone
+               ),
+               tstmp2 = dats_tims_to_tstmp(
+                 date  = @today,
+                 time  = c~arrival_time,
+                 tzone = t~timzone
+               )
+             ),
+             60
+           ) AS duration
     INTO TABLE @connections_buffer.
-
-  DATA(today) = cl_abap_context_info=>get_system_date( ).
-
-  LOOP AT connections_buffer INTO DATA(connection).
-
-    CONVERT DATE today
-      TIME connection-departure_time
-      TIME ZONE connection-timzone_from
-      INTO UTCLONG DATA(departure_utclong).
-
-    CONVERT DATE today
-      TIME connection-arrival_time
-      TIME ZONE connection-timzone_to
-      INTO UTCLONG DATA(arrival_utclong).
-
-    connection-duration = utclong_diff(
-      high = arrival_utclong
-      low  = departure_utclong
-    ) / 60.
-
-    MODIFY connections_buffer FROM connection TRANSPORTING duration.
-
-  ENDLOOP.
 
 ENDMETHOD.
 
@@ -170,61 +164,57 @@ ENDMETHOD.
 
   METHOD constructor.
 
-    TRY.
-        DATA(flight_raw) = flights_buffer[
-          carrier_id    = i_carrier_id
-          connection_id = i_connection_id
-          flight_date   = i_flight_date
-        ].
-      CATCH cx_sy_itab_line_not_found.
-        SELECT SINGLE
+  TRY.
+      DATA(flight_raw) = flights_buffer[
+        carrier_id    = i_carrier_id
+        connection_id = i_connection_id
+        flight_date   = i_flight_date
+      ].
+
+    CATCH cx_sy_itab_line_not_found.
+      SELECT SINGLE
           FROM /lrn/passflight
           FIELDS plane_type_id,
                  seats_max,
                  seats_occupied,
                  seats_max - seats_occupied AS seats_free,
-                 price,
-                 currency_code
+                 currency_conversion(
+                   amount             = price,
+                   source_currency    = currency_code,
+                   target_currency    = @currency,
+                   exchange_rate_date = flight_date,
+                   on_error           = @sql_currency_conversion=>c_on_error-set_to_null
+                 ) AS price,
+                 @currency AS currency_code
           WHERE carrier_id    = @i_carrier_id
             AND connection_id = @i_connection_id
             AND flight_date   = @i_flight_date
           INTO CORRESPONDING FIELDS OF @flight_raw.
-    ENDTRY.
+  ENDTRY.
 
-    IF flight_raw IS NOT INITIAL.
-      me->carrier_id    = i_carrier_id.
-      me->connection_id = i_connection_id.
-      me->flight_date   = i_flight_date.
+  IF flight_raw IS NOT INITIAL.
 
-      planetype  = flight_raw-plane_type_id.
-      seats_max  = flight_raw-seats_max.
-      seats_occ  = flight_raw-seats_occupied.
-      seats_free = flight_raw-seats_free.
+    me->carrier_id    = i_carrier_id.
+    me->connection_id = i_connection_id.
+    me->flight_date   = i_flight_date.
 
-      TRY.
-          cl_exchange_rates=>convert_to_local_currency(
-            EXPORTING
-              date             = me->flight_date
-              foreign_amount   = flight_raw-price
-              foreign_currency = flight_raw-currency_code
-              local_currency   = me->currency
-            IMPORTING
-              local_amount     = me->price
-          ).
-        CATCH cx_exchange_rates.
-          price = flight_raw-price.
-      ENDTRY.
+    planetype  = flight_raw-plane_type_id.
+    seats_max  = flight_raw-seats_max.
+    seats_occ  = flight_raw-seats_occupied.
+    seats_free = flight_raw-seats_free.
 
-      connection_details = CORRESPONDING #(
-        connections_buffer[
-          carrier_id    = carrier_id
-          connection_id = connection_id
-        ]
-      ).
+    price = flight_raw-price.
 
-    ENDIF.
+    connection_details = CORRESPONDING #(
+      connections_buffer[
+        carrier_id    = carrier_id
+        connection_id = connection_id
+      ]
+    ).
 
-  ENDMETHOD.
+  ENDIF.
+
+ENDMETHOD.
 
   METHOD get_connection_details.
     r_result = me->connection_details.
