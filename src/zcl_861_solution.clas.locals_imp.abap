@@ -63,6 +63,7 @@ CLASS lcl_passenger_flight DEFINITION .
     DATA connection_details TYPE st_connection_details.
 
     TYPES:
+
       BEGIN OF st_connections_buffer,
         carrier_id      TYPE /dmo/carrier_id,
         connection_id   TYPE /dmo/connection_id,
@@ -70,6 +71,8 @@ CLASS lcl_passenger_flight DEFINITION .
         airport_to_id   TYPE /dmo/airport_to_id,
         departure_time  TYPE /dmo/flight_departure_time,
         arrival_time    TYPE /dmo/flight_departure_time,
+        timzone_from    TYPE timezone,
+        timzone_to      TYPE timezone,
         duration        TYPE i,
       END OF st_connections_buffer.
 
@@ -95,47 +98,48 @@ ENDCLASS.
 
 CLASS lcl_passenger_flight IMPLEMENTATION.
 
-  METHOD class_constructor.
+ METHOD class_constructor.
 
-    SELECT
-      FROM /lrn/airport
-      FIELDS airport_id, timzone
-      INTO TABLE @DATA(airports).
+  SELECT
+    FROM /lrn/connection AS c
+    LEFT OUTER JOIN /lrn/airport AS f
+      ON c~airport_from_id = f~airport_id
+    LEFT OUTER JOIN /lrn/airport AS t
+      ON c~airport_to_id = t~airport_id
+    FIELDS c~carrier_id,
+           c~connection_id,
+           c~airport_from_id,
+           c~airport_to_id,
+           c~departure_time,
+           c~arrival_time,
+           f~timzone AS timzone_from,
+           t~timzone AS timzone_to
+    INTO TABLE @connections_buffer.
 
-    SELECT
-      FROM /lrn/connection
-      FIELDS carrier_id,
-             connection_id,
-             airport_from_id,
-             airport_to_id,
-             departure_time,
-             arrival_time
-      INTO TABLE @connections_buffer.
+  DATA(today) = cl_abap_context_info=>get_system_date( ).
 
-    DATA(today) = cl_abap_context_info=>get_system_date( ).
+  LOOP AT connections_buffer INTO DATA(connection).
 
-    LOOP AT connections_buffer INTO DATA(connection).
+    CONVERT DATE today
+      TIME connection-departure_time
+      TIME ZONE connection-timzone_from
+      INTO UTCLONG DATA(departure_utclong).
 
-      CONVERT DATE today
-        TIME connection-departure_time
-        TIME ZONE airports[ airport_id = connection-airport_from_id ]-timzone
-        INTO UTCLONG DATA(departure_utclong).
+    CONVERT DATE today
+      TIME connection-arrival_time
+      TIME ZONE connection-timzone_to
+      INTO UTCLONG DATA(arrival_utclong).
 
-      CONVERT DATE today
-        TIME connection-arrival_time
-        TIME ZONE airports[ airport_id = connection-airport_to_id ]-timzone
-        INTO UTCLONG DATA(arrival_utclong).
+    connection-duration = utclong_diff(
+      high = arrival_utclong
+      low  = departure_utclong
+    ) / 60.
 
-      connection-duration = utclong_diff(
-        high = arrival_utclong
-        low  = departure_utclong
-      ) / 60.
+    MODIFY connections_buffer FROM connection TRANSPORTING duration.
 
-      MODIFY connections_buffer FROM connection TRANSPORTING duration.
+  ENDLOOP.
 
-    ENDLOOP.
-
-  ENDMETHOD.
+ENDMETHOD.
 
   METHOD get_flights_by_carrier.
 
