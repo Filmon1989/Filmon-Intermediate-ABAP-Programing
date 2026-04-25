@@ -84,6 +84,7 @@ CLASS lcl_passenger_flight DEFINITION .
         plane_type_id  TYPE /dmo/plane_type_id,
         seats_max      TYPE /dmo/plane_seats_max,
         seats_occupied TYPE /dmo/plane_seats_occupied,
+        seats_free     TYPE i,
         price          TYPE /dmo/flight_price,
         currency_code  TYPE /dmo/currency_code,
       END OF st_flights_buffer.
@@ -151,6 +152,7 @@ ENDMETHOD.
              plane_type_id,
              seats_max,
              seats_occupied,
+             seats_max - seats_occupied AS seats_free,
              price,
              currency_code
       WHERE carrier_id = @i_carrier_id
@@ -180,6 +182,7 @@ ENDMETHOD.
           FIELDS plane_type_id,
                  seats_max,
                  seats_occupied,
+                 seats_max - seats_occupied AS seats_free,
                  price,
                  currency_code
           WHERE carrier_id    = @i_carrier_id
@@ -196,7 +199,7 @@ ENDMETHOD.
       planetype  = flight_raw-plane_type_id.
       seats_max  = flight_raw-seats_max.
       seats_occ  = flight_raw-seats_occupied.
-      seats_free = flight_raw-seats_max - flight_raw-seats_occupied.
+      seats_free = flight_raw-seats_free.
 
       TRY.
           cl_exchange_rates=>convert_to_local_currency(
@@ -459,8 +462,8 @@ CLASS lcl_carrier IMPLEMENTATION.
     me->carrier_id = i_carrier_id.
 
     SELECT SINGLE
-      FROM /dmo/carrier
-      FIELDS name, currency_code
+      FROM /lrn/carrier
+      FIELDS concat_with_space( carrier_id, name, 1 ), currency_code
       WHERE carrier_id = @i_carrier_id
       INTO ( @me->name, @me->currency_code ).
 
@@ -468,7 +471,7 @@ CLASS lcl_carrier IMPLEMENTATION.
       RAISE EXCEPTION TYPE cx_abap_invalid_value.
     ENDIF.
 
-    name = |{ carrier_id } { name }|.
+*    name = |{ carrier_id } { name }|.
 
     me->passenger_flights =
       lcl_passenger_flight=>get_flights_by_carrier(
