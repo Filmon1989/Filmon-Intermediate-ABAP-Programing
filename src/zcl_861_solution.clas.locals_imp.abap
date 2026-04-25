@@ -464,7 +464,7 @@ CLASS lcl_carrier IMPLEMENTATION.
       RAISE EXCEPTION TYPE cx_abap_invalid_value.
     ENDIF.
 
-    name = carrier_id && ` ` && name.
+    name = |{ carrier_id } { name }|.
 
     me->passenger_flights =
       lcl_passenger_flight=>get_flights_by_carrier(
