@@ -126,6 +126,8 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
 
   METHOD get_flights_by_carrier.
 
+  IF NOT line_exists( flights_buffer[ carrier_id = i_carrier_id ] ).
+
     SELECT
       FROM /lrn/passflight
       FIELDS carrier_id,
@@ -144,18 +146,25 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
              ) AS price,
              @currency AS currency_code
       WHERE carrier_id = @i_carrier_id
-      ORDER BY flight_date ASCENDING
-      INTO TABLE @flights_buffer.
+      APPENDING TABLE @flights_buffer.
 
-    LOOP AT flights_buffer INTO DATA(flight).
-      APPEND NEW lcl_passenger_flight(
+    SORT flights_buffer BY carrier_id connection_id flight_date.
+
+  ENDIF.
+
+  r_result = VALUE #(
+    FOR flight IN flights_buffer
+    WHERE ( carrier_id = i_carrier_id )
+    (
+      NEW lcl_passenger_flight(
         i_carrier_id    = flight-carrier_id
         i_connection_id = flight-connection_id
         i_flight_date   = flight-flight_date
-      ) TO r_result.
-    ENDLOOP.
+      )
+    )
+  ).
 
-  ENDMETHOD.
+ENDMETHOD.
 
   METHOD constructor.
 
@@ -526,17 +535,14 @@ CLASS lcl_carrier IMPLEMENTATION.
 
   ENDMETHOD.
 
-  METHOD get_average_free_seats.
+ METHOD get_average_free_seats.
 
-    SELECT
-      FROM /lrn/passflight
-      FIELDS SUM( seats_max - seats_occupied ) AS sum,
-             COUNT( * ) AS count
-      WHERE carrier_id = @carrier_id
-      INTO @DATA(aggregates).
+      r_result = REDUCE i(
+        INIT total = 0
+        FOR flight IN passenger_flights
+        NEXT total = total + flight->get_free_seats( )
+      ) / lines( passenger_flights ).
 
-    r_result = aggregates-sum / aggregates-count.
-
-  ENDMETHOD.
+ENDMETHOD.
 
 ENDCLASS.
