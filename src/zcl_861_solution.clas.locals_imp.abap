@@ -469,14 +469,17 @@ CLASS lcl_carrier DEFINITION.
 
   PRIVATE SECTION.
 
-    DATA name          TYPE /dmo/carrier_name.
-    DATA currency_code TYPE /dmo/currency_code ##NEEDED.
+      DATA name          TYPE /dmo/carrier_name.
+      DATA currency_code TYPE /dmo/currency_code ##NEEDED.
 
-    DATA passenger_flights TYPE lcl_passenger_flight=>tt_flights.
-    DATA cargo_flights     TYPE lcl_cargo_flight=>tt_flights.
+      DATA passenger_flights TYPE lcl_passenger_flight=>tt_flights.
+      DATA cargo_flights     TYPE lcl_cargo_flight=>tt_flights.
 
-    METHODS get_average_free_seats
-      RETURNING VALUE(r_result) TYPE i.
+      TYPES tt_flights_all TYPE STANDARD TABLE OF REF TO lcl_flight WITH DEFAULT KEY.
+      DATA all_flights TYPE tt_flights_all.
+
+      METHODS get_average_free_seats
+        RETURNING VALUE(r_result) TYPE i.
 
 ENDCLASS.
 
@@ -512,6 +515,15 @@ CLASS lcl_carrier IMPLEMENTATION.
       me->cargo_flights =
         lcl_cargo_flight=>get_flights_by_carrier(
           i_carrier_id = i_carrier_id ).
+       " Add passenger flights
+    LOOP AT me->passenger_flights INTO DATA(pf).
+      APPEND pf TO all_flights.
+    ENDLOOP.
+
+    " Add cargo flights
+    LOOP AT me->cargo_flights INTO DATA(cf).
+      APPEND cf TO all_flights.
+    ENDLOOP.
 
     ENDMETHOD.
 
