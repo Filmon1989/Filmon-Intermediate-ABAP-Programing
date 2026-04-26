@@ -1,9 +1,25 @@
 *"* use this source file for the definition and implementation of
 *"* local helper classes, interface definitions and type
 *"* declarations
+*"* use this source file for the definition and implementation...
+
+INTERFACE lif_output.
+
+  TYPES t_output TYPE string.
+  TYPES tt_output TYPE STANDARD TABLE OF t_output
+    WITH NON-UNIQUE DEFAULT KEY.
+
+  METHODS get_output
+    RETURNING VALUE(r_result) TYPE tt_output.
+
+ENDINTERFACE.
+
+
 CLASS lcl_flight DEFINITION ABSTRACT.
 
   PUBLIC SECTION.
+
+    INTERFACES lif_output.
 
     METHODS constructor
       IMPORTING
@@ -19,6 +35,7 @@ CLASS lcl_flight DEFINITION ABSTRACT.
         arrival_time    TYPE /dmo/flight_arrival_time,
         duration        TYPE i,
       END OF st_connection_details.
+     TYPES tab TYPE STANDARD TABLE OF REF TO lcl_flight WITH DEFAULT KEY.
 
     DATA carrier_id    TYPE /dmo/carrier_id READ-ONLY.
     DATA connection_id TYPE /dmo/connection_id READ-ONLY.
@@ -50,20 +67,27 @@ CLASS lcl_flight IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD get_connection_details.
+
     r_result = me->connection_details.
+
   ENDMETHOD.
 
- METHOD get_description.
+  METHOD get_description.
 
-  APPEND |Flight { carrier_id } { connection_id } on { flight_date DATE = USER } | &&
-         |from { connection_details-airport_from_id } to { connection_details-airport_to_id } |
-         TO r_result.
-  APPEND |Planetype:      { planetype } | TO r_result.
+    APPEND |Flight { carrier_id } { connection_id } on { flight_date DATE = USER } | &&
+           |from { connection_details-airport_from_id } to { connection_details-airport_to_id } |
+           TO r_result.
+    APPEND |Planetype:      { planetype } | TO r_result.
 
-ENDMETHOD.
+  ENDMETHOD.
+
+  METHOD lif_output~get_output.
+
+    r_result = get_description( ).
+
+  ENDMETHOD.
 
 ENDCLASS.
-
 CLASS lcl_passenger_flight DEFINITION INHERITING FROM lcl_flight.
 
   PUBLIC SECTION.
@@ -434,8 +458,8 @@ CLASS lcl_carrier DEFINITION.
 
   PUBLIC SECTION.
 
-    TYPES t_output TYPE string.
-    TYPES tt_output TYPE STANDARD TABLE OF t_output WITH NON-UNIQUE DEFAULT KEY.
+    INTERFACES lif_output.
+    ALIASES get_output FOR lif_output~get_output.
 
     DATA carrier_id TYPE /dmo/carrier_id READ-ONLY.
 
@@ -445,7 +469,7 @@ CLASS lcl_carrier DEFINITION.
         cx_abap_invalid_value
         cx_abap_auth_check_exception.
 
-    METHODS get_output RETURNING VALUE(r_result) TYPE tt_output.
+
 
     METHODS find_passenger_flight
       IMPORTING
@@ -474,9 +498,10 @@ CLASS lcl_carrier DEFINITION.
 
       DATA passenger_flights TYPE lcl_passenger_flight=>tt_flights.
       DATA cargo_flights     TYPE lcl_cargo_flight=>tt_flights.
+      DATA flights TYPE lcl_flight=>tab.
 
-      TYPES tt_flights_all TYPE STANDARD TABLE OF REF TO lcl_flight WITH DEFAULT KEY.
-      DATA all_flights TYPE tt_flights_all.
+*      TYPES tt_flights_all TYPE STANDARD TABLE OF REF TO lcl_flight WITH DEFAULT KEY.
+*      DATA all_flights TYPE tt_flights_all.
 
       METHODS get_average_free_seats
         RETURNING VALUE(r_result) TYPE i.
@@ -517,17 +542,17 @@ CLASS lcl_carrier IMPLEMENTATION.
           i_carrier_id = i_carrier_id ).
        " Add passenger flights
     LOOP AT me->passenger_flights INTO DATA(pf).
-      APPEND pf TO all_flights.
+      APPEND pf TO flights.
     ENDLOOP.
 
     " Add cargo flights
     LOOP AT me->cargo_flights INTO DATA(cf).
-      APPEND cf TO all_flights.
+      APPEND cf TO flights.
     ENDLOOP.
 
     ENDMETHOD.
 
-  METHOD get_output.
+  METHOD lif_output~get_output.
 
     APPEND |{ 'Carrier Name:'(001) } { me->name }| TO r_result.
     APPEND |{ 'Passenger Flights:'(002) } { lines( passenger_flights ) }| TO r_result.
