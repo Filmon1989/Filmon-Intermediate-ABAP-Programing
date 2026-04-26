@@ -421,7 +421,9 @@ CLASS lcl_carrier DEFINITION.
 
     METHODS constructor
       IMPORTING i_carrier_id TYPE /dmo/carrier_id
-      RAISING cx_abap_invalid_value.
+      RAISING
+        cx_abap_invalid_value
+        cx_abap_auth_check_exception.
 
     METHODS get_output RETURNING VALUE(r_result) TYPE tt_output.
 
@@ -460,29 +462,38 @@ ENDCLASS.
 
 CLASS lcl_carrier IMPLEMENTATION.
 
-  METHOD constructor.
+    METHOD constructor.
 
-    me->carrier_id = i_carrier_id.
+      me->carrier_id = i_carrier_id.
 
-    SELECT SINGLE
-      FROM /lrn/carrier
-      FIELDS concat_with_space( carrier_id, name, 1 ), currency_code
-      WHERE carrier_id = @i_carrier_id
-      INTO ( @me->name, @me->currency_code ).
+      SELECT SINGLE
+        FROM /lrn/carrier
+        FIELDS concat_with_space( carrier_id, name, 1 ), currency_code
+        WHERE carrier_id = @i_carrier_id
+        INTO ( @me->name, @me->currency_code ).
 
-    IF sy-subrc <> 0.
-      RAISE EXCEPTION TYPE cx_abap_invalid_value.
-    ENDIF.
+      IF sy-subrc <> 0.
+        RAISE EXCEPTION TYPE cx_abap_invalid_value.
+      ENDIF.
 
-    me->passenger_flights =
-      lcl_passenger_flight=>get_flights_by_carrier(
-        i_carrier_id = i_carrier_id ).
+      AUTHORITY-CHECK
+        OBJECT '/LRN/CARR'
+        ID '/LRN/CARR' FIELD i_carrier_id
+        ID 'ACTVT' FIELD '03'.
 
-    me->cargo_flights =
-      lcl_cargo_flight=>get_flights_by_carrier(
-        i_carrier_id = i_carrier_id ).
+      IF sy-subrc <> 0.
+        RAISE EXCEPTION TYPE cx_abap_auth_check_exception.
+      ENDIF.
 
-  ENDMETHOD.
+      me->passenger_flights =
+        lcl_passenger_flight=>get_flights_by_carrier(
+          i_carrier_id = i_carrier_id ).
+
+      me->cargo_flights =
+        lcl_cargo_flight=>get_flights_by_carrier(
+          i_carrier_id = i_carrier_id ).
+
+    ENDMETHOD.
 
   METHOD get_output.
 
