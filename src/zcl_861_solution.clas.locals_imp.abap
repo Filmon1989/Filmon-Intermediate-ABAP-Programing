@@ -500,6 +500,9 @@ CLASS lcl_carrier DEFINITION.
       DATA cargo_flights     TYPE lcl_cargo_flight=>tt_flights.
       DATA flights TYPE lcl_flight=>tab.
 
+      TYPES tt_outputs TYPE STANDARD TABLE OF REF TO lif_output WITH DEFAULT KEY.
+      DATA outputs TYPE tt_outputs.
+
 *      TYPES tt_flights_all TYPE STANDARD TABLE OF REF TO lcl_flight WITH DEFAULT KEY.
 *      DATA all_flights TYPE tt_flights_all.
 
@@ -550,6 +553,13 @@ CLASS lcl_carrier IMPLEMENTATION.
       APPEND cf TO flights.
     ENDLOOP.
 
+    " add self (carrier)
+APPEND me TO outputs.
+
+    " add all flights (both passenger and cargo)
+    LOOP AT flights INTO DATA(flight).
+      APPEND flight TO outputs.
+    ENDLOOP.
     ENDMETHOD.
 
   METHOD lif_output~get_output.

@@ -1,21 +1,22 @@
-CLASS zcl_861_solution DEFINITION
+ CLASS zcl_861_solution DEFINITION
   PUBLIC
   FINAL
-  CREATE PUBLIC .
+  CREATE PUBLIC.
 
   PUBLIC SECTION.
 
-    INTERFACES if_oo_adt_classrun .
+    INTERFACES if_oo_adt_classrun.
+
   PROTECTED SECTION.
   PRIVATE SECTION.
+
 ENDCLASS.
 
 
 
-CLASS ZCL_861_SOLUTION IMPLEMENTATION.
+CLASS zcl_861_solution IMPLEMENTATION.
 
-
-METHOD if_oo_adt_classrun~main.
+  METHOD if_oo_adt_classrun~main.
 
   CONSTANTS c_carrier_id TYPE /dmo/carrier_id VALUE 'LH'.
 
@@ -50,8 +51,10 @@ METHOD if_oo_adt_classrun~main.
     ).
 
     IF pass_flight IS BOUND.
-      out->write( name = |Found a suitable passenger flight in { days_later } days:|
-                  data = pass_flight->get_description( ) ).
+      out->write(
+        name = |Found a suitable passenger flight in { days_later } days:|
+        data = pass_flight->lif_output~get_output( )
+      ).
     ELSE.
       out->write( data = `No Passenger Flight found` ).
     ENDIF.
@@ -70,8 +73,10 @@ METHOD if_oo_adt_classrun~main.
     ).
 
     IF cargo_flight IS BOUND.
-      out->write( name = |Found a suitable cargo flight in { days_later2 } days:|
-                  data = cargo_flight->get_description( ) ).
+      out->write(
+        name = |Found a suitable cargo flight in { days_later2 } days:|
+        data = cargo_flight->lif_output~get_output( )
+      ).
     ELSE.
       out->write( data = `No cargo flight found` ).
     ENDIF.
@@ -79,4 +84,5 @@ METHOD if_oo_adt_classrun~main.
   ENDIF.
 
 ENDMETHOD.
+
 ENDCLASS.
