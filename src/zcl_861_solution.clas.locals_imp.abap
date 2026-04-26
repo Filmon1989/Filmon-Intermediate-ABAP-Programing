@@ -152,17 +152,17 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
 
   ENDIF.
 
-  r_result = VALUE #(
-    FOR flight IN flights_buffer
-    WHERE ( carrier_id = i_carrier_id )
-    (
-      NEW lcl_passenger_flight(
-        i_carrier_id    = flight-carrier_id
-        i_connection_id = flight-connection_id
-        i_flight_date   = flight-flight_date
+     r_result = VALUE #(
+      FOR <flight> IN flights_buffer
+      WHERE ( carrier_id = i_carrier_id )
+      (
+        NEW lcl_passenger_flight(
+          i_carrier_id    = <flight>-carrier_id
+          i_connection_id = <flight>-connection_id
+          i_flight_date   = <flight>-flight_date
+        )
       )
-    )
-  ).
+    ).
 
 ENDMETHOD.
 
