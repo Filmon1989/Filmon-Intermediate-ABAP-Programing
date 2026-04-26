@@ -80,8 +80,12 @@ CLASS lcl_passenger_flight DEFINITION.
         currency_code  TYPE /dmo/currency_code,
       END OF st_flights_buffer.
 
-    CLASS-DATA connections_buffer TYPE STANDARD TABLE OF st_connections_buffer WITH NON-UNIQUE DEFAULT KEY.
-    CLASS-DATA flights_buffer TYPE STANDARD TABLE OF st_flights_buffer WITH NON-UNIQUE DEFAULT KEY.
+   CLASS-DATA connections_buffer
+      TYPE HASHED TABLE OF st_connections_buffer
+      WITH UNIQUE KEY carrier_id connection_id.
+    CLASS-DATA flights_buffer
+      TYPE SORTED TABLE OF st_flights_buffer
+      WITH NON-UNIQUE KEY carrier_id connection_id flight_date.
 
 ENDCLASS.
 
@@ -148,7 +152,7 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
       WHERE carrier_id = @i_carrier_id
       APPENDING TABLE @flights_buffer.
 
-    SORT flights_buffer BY carrier_id connection_id flight_date.
+*    SORT flights_buffer BY carrier_id connection_id flight_date.
 
   ENDIF.
 
