@@ -83,10 +83,10 @@ CLASS lcl_passenger_flight DEFINITION.
    CLASS-DATA connections_buffer
       TYPE HASHED TABLE OF st_connections_buffer
       WITH UNIQUE KEY carrier_id connection_id.
-    CLASS-DATA flights_buffer
-      TYPE SORTED TABLE OF st_flights_buffer
-      WITH NON-UNIQUE KEY carrier_id connection_id flight_date.
-
+   CLASS-DATA flights_buffer
+      TYPE HASHED TABLE OF st_flights_buffer
+      WITH UNIQUE KEY carrier_id connection_id flight_date
+      WITH NON-UNIQUE SORTED KEY sk_carrier COMPONENTS carrier_id.
 ENDCLASS.
 
 CLASS lcl_passenger_flight IMPLEMENTATION.
@@ -130,7 +130,10 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
 
   METHOD get_flights_by_carrier.
 
-  IF NOT line_exists( flights_buffer[ carrier_id = i_carrier_id ] ).
+  IF NOT line_exists( flights_buffer[
+  KEY sk_carrier
+  COMPONENTS carrier_id = i_carrier_id
+] ).
 
     SELECT
       FROM /lrn/passflight
@@ -156,8 +159,9 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
 
   ENDIF.
 
-     r_result = VALUE #(
+   r_result = VALUE #(
       FOR <flight> IN flights_buffer
+      USING KEY sk_carrier
       WHERE ( carrier_id = i_carrier_id )
       (
         NEW lcl_passenger_flight(
