@@ -537,16 +537,16 @@ CLASS lcl_carrier IMPLEMENTATION.
         INTO @DATA(lv_dummy).
 
       IF sy-subrc <> 0.
-        RAISE EXCEPTION TYPE cx_abap_invalid_value.
-      ENDIF.
+      RAISE EXCEPTION TYPE cx_abap_invalid_value.
+     ENDIF.
 
       AUTHORITY-CHECK OBJECT '/LRN/CARR'
         ID '/LRN/CARR' FIELD i_carrier_id
         ID 'ACTVT' FIELD '03'.
 
       IF sy-subrc <> 0.
-        RAISE EXCEPTION TYPE cx_abap_auth_check_exception.
-      ENDIF.
+      RAISE EXCEPTION TYPE cx_abap_auth_check_exception.
+     ENDIF.
 
       LOOP AT instances INTO DATA(lo_carrier).
         IF lo_carrier->carrier_id = i_carrier_id.
