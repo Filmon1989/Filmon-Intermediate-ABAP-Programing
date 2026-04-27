@@ -489,7 +489,7 @@ CLASS lcl_carrier DEFINITION.
         i_from_date       TYPE /dmo/flight_date
         i_seats           TYPE i
       EXPORTING
-        e_flight          TYPE REF TO lcl_passenger_flight
+        e_flight TYPE REF TO lif_output
         e_days_later      TYPE i.
 
     METHODS find_cargo_flight
@@ -499,7 +499,7 @@ CLASS lcl_carrier DEFINITION.
         i_from_date       TYPE /dmo/flight_date
         i_cargo           TYPE /lrn/plane_actual_load
       EXPORTING
-        e_flight          TYPE REF TO lcl_cargo_flight
+        e_flight TYPE REF TO lif_output
         e_days_later      TYPE i.
 
   PRIVATE SECTION.
