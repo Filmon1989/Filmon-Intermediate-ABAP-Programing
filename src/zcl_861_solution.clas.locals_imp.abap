@@ -469,6 +469,17 @@ CLASS lcl_carrier DEFINITION.
         cx_abap_invalid_value
         cx_abap_auth_check_exception.
 
+    TYPES tt_carriers TYPE STANDARD TABLE OF REF TO lcl_carrier WITH DEFAULT KEY.
+
+    CLASS-METHODS get_instance
+      IMPORTING
+        i_carrier_id TYPE /dmo/carrier_id
+      RETURNING
+        VALUE(r_result) TYPE REF TO lcl_carrier
+      RAISING
+        cx_abap_invalid_value
+        cx_abap_auth_check_exception.
+
 
 
     METHODS find_passenger_flight
@@ -496,6 +507,8 @@ CLASS lcl_carrier DEFINITION.
       DATA name          TYPE /dmo/carrier_name.
       DATA currency_code TYPE /dmo/currency_code ##NEEDED.
 
+      CLASS-DATA instances TYPE tt_carriers.
+
       DATA passenger_flights TYPE lcl_passenger_flight=>tt_flights.
       DATA cargo_flights     TYPE lcl_cargo_flight=>tt_flights.
       DATA flights TYPE lcl_flight=>tab.
@@ -509,9 +522,43 @@ CLASS lcl_carrier DEFINITION.
       METHODS get_average_free_seats
         RETURNING VALUE(r_result) TYPE i.
 
+
+
 ENDCLASS.
 
 CLASS lcl_carrier IMPLEMENTATION.
+
+   METHOD get_instance.
+
+      SELECT SINGLE
+        FROM /lrn/carrier
+        FIELDS carrier_id
+        WHERE carrier_id = @i_carrier_id
+        INTO @DATA(lv_dummy).
+
+      IF sy-subrc <> 0.
+        RAISE EXCEPTION TYPE cx_abap_invalid_value.
+      ENDIF.
+
+      AUTHORITY-CHECK OBJECT '/LRN/CARR'
+        ID '/LRN/CARR' FIELD i_carrier_id
+        ID 'ACTVT' FIELD '03'.
+
+      IF sy-subrc <> 0.
+        RAISE EXCEPTION TYPE cx_abap_auth_check_exception.
+      ENDIF.
+
+      LOOP AT instances INTO DATA(lo_carrier).
+        IF lo_carrier->carrier_id = i_carrier_id.
+          r_result = lo_carrier.
+          RETURN.
+        ENDIF.
+      ENDLOOP.
+
+      r_result = NEW lcl_carrier( i_carrier_id = i_carrier_id ).
+      APPEND r_result TO instances.
+
+ENDMETHOD.
 
     METHOD constructor.
 
